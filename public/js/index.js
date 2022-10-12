@@ -1,27 +1,56 @@
+const getLoginDetails = async () => {
+    // get logindetails
+    const strlogindetails = localStorage.getItem("logindetails");
+    let logindetails;
+    if (strlogindetails) {
+        logindetails = JSON.parse(strlogindetails);
+    } else {
+        const resp = await fetch("/api/logindetails", {
+            method: "get",
+            headers: {
+                "content-type": "application/json",
+                accept: "application/json",
+            },
+        });
+        logindetails = await resp.json();
+        localStorage.setItem("logindetails", JSON.stringify(logindetails));
+    }
+    return logindetails;
+}
+const getUserManager = async () => {
+    // get logindetails
+    const logindetails = await getLoginDetails();
+
+    // get usermanager
+    const mgr = new oidc.UserManager({
+        authority: `https://${logindetails.mydomain}`,
+        client_id: logindetails.client_id,
+        redirect_uri: logindetails.redirect_uri,
+        scope: "openid api refresh_token",
+        loadUserInfo: true,
+        userStore: new oidc.WebStorageStateStore({ store: window.localStorage }),
+    });
+
+    // return
+    return mgr;
+}
 const navigationHandler_Login = async () => {
-    // ask server for login details
-    const resp = await fetch("/api/logindetails", {
-        method: "get",
-        headers: {
-            "content-type": "application/json",
-            accept: "application/json"
-        }
-    })
-    const obj = await resp.json();
-
-    // save in localStorage
-    localStorage.setItem("logindetails", JSON.stringify(obj));
-
-    // create state
-    const strstate = btoa(JSON.stringify({"foo": "bar"}));
-    
-    // initiate login
-    document.location.href = `https://${obj.mydomain}/services/oauth2/authorize?client_id=${obj.client_id}&redirect_uri=${obj.redirect_uri}&response_type=code&state=${strstate}&code_challenge=${obj.code_challenge}`;
+    // get user manager
+    const mgr = await getUserManager();
+    mgr.signinRedirect({
+        state: {
+            foo: "baz",
+        },
+    });
     
 }
-const navigationHandler_Logout = () => {
-    localStorage.removeItem("user");
-    document.location.hash = "#";
+const navigationHandler_Logout = async () => {
+    const mgr = await getUserManager();
+    await mgr.removeUser();
+    setTimeout(() => {
+        document.location.hash = "#";
+    }, 200)
+
 };
 
 const addTagHeadline = (container, text) => {
@@ -41,25 +70,24 @@ const addTagParagraph = (container, text) => {
     return e;
 }
 const addMenuItem = (container, title, hash) => {
-        const currentHash = document.location.hash;
-        const elem = document.createElement("a");
-        const classNames = ["nav-link"];
-        if ((!currentHash && !hash) || currentHash === `#${hash}`) {
-            classNames.push("active");
-        }
-        elem.className = classNames.join(" ");
-        elem.setAttribute("href", `#${hash}`);
-        elem.appendChild(document.createTextNode(title));
-        container.appendChild(elem);
+    const currentHash = document.location.hash;
+    const elem = document.createElement("a");
+    const classNames = ["nav-link"];
+    if ((!currentHash && !hash) || currentHash === `#${hash}`) {
+        classNames.push("active");
+    }
+    elem.className = classNames.join(" ");
+    elem.setAttribute("href", `#${hash}`);
+    elem.appendChild(document.createTextNode(title));
+    container.appendChild(elem);
 }
-const getUser = () => {
-    const struser = localStorage.getItem("user");
-    if (!struser) return undefined;
-    return JSON.parse(struser);
+const getUser = async () => {
+    const mgr = await getUserManager();
+    return mgr.getUser();
 }
-const buildMenu = () => {
+const buildMenu = async () => {
     // get user
-    const user = getUser();
+    const user = await getUser();
     
     // build menu
     const navigationContainer = document.getElementById("navigation");
@@ -73,7 +101,7 @@ const buildMenu = () => {
     }
 }
 const navigationClickHandler = async (ev) => {
-    const user = getUser();
+    const user = await getUser();
     const hash = document.location.hash;
     buildMenu();
     
@@ -81,11 +109,11 @@ const navigationClickHandler = async (ev) => {
     mainContainer.innerText = "";
     if (["", "#"].includes(hash)) {
         if (user) {
-            addTagHeadline(mainContainer, `Welcome ${user.userinfo.name}`);
+            addTagHeadline(mainContainer, `Welcome ${user.profile.name}`);
             const respData = await fetch("/api/userinfo", {
                 headers: {
                     "content-type": "application/json",
-                    authorization: `Bearer ${user.tokeninfo.access_token}`
+                    authorization: `Bearer ${user.access_token}`
                 }
             });
             if (respData.status === 401) {
@@ -145,39 +173,12 @@ window.addEventListener("DOMContentLoaded", async () => {
     navigationClickHandler();
 
     // look for logindetails info in local storage and handle callback if applicable
-    const strlogindetails = localStorage.getItem("logindetails")
-    if (strlogindetails && (location.search.includes("state=") && (location.search.includes("code=") || location.search.includes("error=")))) {
-        const params = new URLSearchParams(location.search);
+    if (location.search.includes("state=") && (location.search.includes("code=") || location.search.includes("error="))) {
+        const mgr = await getUserManager();
+        const user = await mgr.signinCallback();
         window.history.replaceState({}, document.title, "/");
-        const auth_code = params.get("code");
-        const strstate = params.get("state");
-        console.log("State", JSON.parse(atob(strstate)));
-
-        // get logindetails
-        const logindetails = JSON.parse(strlogindetails);
-
-        // exchange authcode
-        const respToken = await fetch(`https://${logindetails.mydomain}/services/oauth2/token`, {
-            "method": "post",
-            "headers": {
-                "content-type": "application/x-www-form-urlencoded",
-                "accept": "application/json"
-            },
-            body: `code=${auth_code}&code_verifier=${logindetails.code_verifier}&grant_type=authorization_code&redirect_uri=${logindetails.redirect_uri}&client_id=${logindetails.client_id}`
-        })
-        const tokeninfo = await respToken.json();
-        console.log(tokeninfo);
-
-        // get userinfo
-        const respUserinfo = await fetch(`https://${logindetails.mydomain}/services/oauth2/userinfo?access_token=${tokeninfo.access_token}`);
-        const userinfo = await respUserinfo.json();
-        console.log(userinfo);
 
         // save user
-        localStorage.setItem("user", JSON.stringify({
-            tokeninfo,
-            userinfo
-        }));
         location.hash = "#";
     }
 });
