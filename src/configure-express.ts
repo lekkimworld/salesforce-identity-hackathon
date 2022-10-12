@@ -23,6 +23,7 @@ export default () => {
     let port = 8080;
     if (process.env.PORT) {
         console.log(`PORT environment variable detected`);
+        port = Number.parseInt(process.env.PORT);
     }
     app.listen(port);
     console.log(`Listening on port ${port}`);
