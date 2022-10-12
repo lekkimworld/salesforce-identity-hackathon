@@ -60,8 +60,7 @@ const getUser = () => {
 const buildMenu = () => {
     // get user
     const user = getUser();
-    console.log(`User`, user);
-
+    
     // build menu
     const navigationContainer = document.getElementById("navigation");
     navigationContainer.innerText = "";
@@ -73,14 +72,51 @@ const buildMenu = () => {
         addMenuItem(navigationContainer, "Logout", "logout");
     }
 }
-const navigationClickHandler = (ev) => {
+const navigationClickHandler = async (ev) => {
+    const user = getUser();
     const hash = document.location.hash;
     buildMenu();
     
     const mainContainer = document.querySelector("main[role='main']");
     mainContainer.innerText = "";
     if (["", "#"].includes(hash)) {
-        addTagHeadline(mainContainer, "Welcome");
+        if (user) {
+            addTagHeadline(mainContainer, `Welcome ${user.userinfo.name}`);
+            const respData = await fetch("/api/userinfo", {
+                headers: {
+                    "content-type": "application/json",
+                    authorization: `Bearer ${user.tokeninfo.access_token}`
+                }
+            });
+            if (respData.status === 401) {
+                // see if we have a refresh token
+                const refresh_token = user.tokeninfo.refresh_token;
+                if (refresh_token) {
+                    // attempt to refresh access token
+                    const logindetails = JSON.parse(localStorage.getItem("logindetails"));
+                    const respRefresh = await fetch(`https://${logindetails.mydomain}/services/oauth2/token`, {
+                        method: "post",
+                        headers: {
+                            "content-type": "application/x-www-form-urlencoded",
+                            accept: "application/json",
+                        },
+                        body: `client_id=${logindetails.client_id}&grant_type=refresh_token&refresh_token=${refresh_token}`,
+                    });
+                    const dataRefresh = await respRefresh.json();
+                    user.tokeninfo = dataRefresh;
+                    user.tokeninfo.refresh_token = refresh_token;
+                    localStorage.setItem("user", JSON.stringify(user));
+                    document.location.reload();
+                } else {
+                    document.location.hash = "#error";
+                }
+                return;
+            }
+            const data = await respData.json();
+            addTagParagraph(mainContainer, `UUID: ${data.uuid}`)
+        } else {
+            addTagHeadline(mainContainer, `Welcome - please authenticate`);
+        }
     } else if (["#about"].includes(hash)) {
         addTagHeadline(mainContainer, "About");
         addTagParagraph(
@@ -101,14 +137,14 @@ const navigationClickHandler = (ev) => {
 const initNavigation = () => {
     const navigationContainer = document.getElementById("navigation");
     navigationContainer.addEventListener("click", navigationClickHandler);
-    buildMenu();
 }
 
 window.addEventListener("DOMContentLoaded", async () => {
+    // init app
     initNavigation();
     navigationClickHandler();
 
-    // look for logindetails info in local storage
+    // look for logindetails info in local storage and handle callback if applicable
     const strlogindetails = localStorage.getItem("logindetails")
     if (strlogindetails && (location.search.includes("state=") && (location.search.includes("code=") || location.search.includes("error=")))) {
         const params = new URLSearchParams(location.search);
@@ -133,14 +169,11 @@ window.addEventListener("DOMContentLoaded", async () => {
         console.log(tokeninfo);
 
         // get userinfo
-        const respUserinfo = await fetch(`https://${logindetails.mydomain}/services/oauth2/userinfo`, {
-                headers: {
-                    authorization: `Bearer ${tokeninfo.access_token}`,
-                },
-            }
-        );
+        const respUserinfo = await fetch(`https://${logindetails.mydomain}/services/oauth2/userinfo?access_token=${tokeninfo.access_token}`);
         const userinfo = await respUserinfo.json();
+        console.log(userinfo);
 
+        // save user
         localStorage.setItem("user", JSON.stringify({
             tokeninfo,
             userinfo

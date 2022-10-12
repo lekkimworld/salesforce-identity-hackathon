@@ -1,7 +1,7 @@
 import express, { Application } from "express";
-import { v4 as uuid } from "uuid";
 import {createHash, pseudoRandomBytes} from "crypto";
 import base64url from "base64url";
+import constants from "./constants";
 
 const buildRenderContext = (data? : any) : any => {
     const std = {
@@ -19,9 +19,9 @@ router.get("/logindetails", (_req, res) => {
     const code_challenge = base64url(createHash("sha256").update(code_verifier).digest());
     res.type("json");
     res.send({
-        "client_id": process.env.CLIENT_ID,
-        "redirect_uri": process.env.REDIRECT_URI,
-        "mydomain": process.env.MYDOMAIN,
+        "client_id": constants.CLIENT_ID,
+        "redirect_uri": constants.REDIRECT_URI,
+        "mydomain": constants.MYDOMAIN,
         code_challenge,
         code_verifier
     })
