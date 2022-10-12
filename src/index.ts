@@ -6,7 +6,15 @@ import configureAuthenticatedRoutes from "./configure-routes-authenticated";
 import fetch from "node-fetch";
 import constants from "./constants";
 
+// counter
 let counter = 0;
+
+// show config
+console.log(`CLIENT_ID=${constants.CLIENT_ID}`);
+console.log(`CLIENT_SECRET=${constants.CLIENT_SECRET?.substring(0, 10)}...`);
+console.log(`REDIRECT_URI=${constants.REDIRECT_URI}`);
+console.log(`MYDOMAIN=${constants.MYDOMAIN}`);
+console.log(`COUNTER_EXP=${constants.COUNTER_EXP}`);
 
 const main = async () => {
     // create app and configure

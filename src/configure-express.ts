@@ -1,8 +1,8 @@
-import express, { Application } from "express";
-import session, {SessionOptions} from "express-session";
+import express from "express";
+import session from "express-session";
 import path from "path";
 import { v4 as uuid } from "uuid";
-import Handlebars from "handlebars";
+import constants from "./constants";
 import {engine} from "express-handlebars";
 
 export default () => {
@@ -20,12 +20,7 @@ export default () => {
     app.set("view engine", "handlebars");
 
     // listen
-    let port = 8080;
-    if (process.env.PORT) {
-        console.log(`PORT environment variable detected`);
-        port = Number.parseInt(process.env.PORT);
-    }
-    app.listen(port);
-    console.log(`Listening on port ${port}`);
+    app.listen(constants.PORT);
+    console.log(`Listening on port ${constants.PORT}`);
     return app;
 }

@@ -18,5 +18,5 @@ npm run start
 
 ## Running with Docker ##
 ```
-docker run --rm -it -p 8080:8080 lekkim/salesforce-identity-hackathon:pkce-flow
+docker run --rm -it -p 8080:8080 --env-file ./.env lekkim/salesforce-identity-hackathon:pkce-flow
 ```
