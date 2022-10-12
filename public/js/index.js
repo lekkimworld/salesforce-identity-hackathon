@@ -134,14 +134,9 @@ const navigationClickHandler = async (ev) => {
     }
 
 }
-const initNavigation = () => {
-    const navigationContainer = document.getElementById("navigation");
-    navigationContainer.addEventListener("click", navigationClickHandler);
-}
 
 window.addEventListener("DOMContentLoaded", async () => {
     // init app
-    initNavigation();
     navigationClickHandler();
 
     // look for logindetails info in local storage and handle callback if applicable
