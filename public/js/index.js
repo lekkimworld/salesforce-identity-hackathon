@@ -16,8 +16,8 @@ const getLoginDetails = async () => {
         localStorage.setItem("logindetails", JSON.stringify(logindetails));
     }
     return logindetails;
-}
-const getUserManager = async () => {
+};
+let usermgr = new Promise(async (resolve, reject) => {
     // get logindetails
     const logindetails = await getLoginDetails();
 
@@ -30,10 +30,12 @@ const getUserManager = async () => {
         loadUserInfo: true,
         userStore: new oidc.WebStorageStateStore({ store: window.localStorage }),
     });
+    resolve(mgr);
+});
 
-    // return
-    return mgr;
-}
+const getUserManager = async () => {
+    return await usermgr;
+};
 const navigationHandler_Login = async () => {
     // get user manager
     const mgr = await getUserManager();
@@ -42,15 +44,11 @@ const navigationHandler_Login = async () => {
             foo: "baz",
         },
     });
-    
-}
+};
 const navigationHandler_Logout = async () => {
     const mgr = await getUserManager();
     await mgr.removeUser();
-    setTimeout(() => {
-        document.location.hash = "#";
-    }, 200)
-
+    document.location.hash = "#";
 };
 
 const addTagHeadline = (container, text) => {
@@ -59,16 +57,14 @@ const addTagHeadline = (container, text) => {
     elemHeadline.appendChild(document.createTextNode(text));
     container.appendChild(elemHeadline);
     return elemHeadline;
-}
+};
 const addTagParagraph = (container, text) => {
     const e = document.createElement("p");
     e.className = "lead";
-    e.appendChild(
-        document.createTextNode(text)
-    );
+    e.appendChild(document.createTextNode(text));
     container.appendChild(e);
     return e;
-}
+};
 const addMenuItem = (container, title, hash) => {
     const currentHash = document.location.hash;
     const elem = document.createElement("a");
@@ -80,15 +76,15 @@ const addMenuItem = (container, title, hash) => {
     elem.setAttribute("href", `#${hash}`);
     elem.appendChild(document.createTextNode(title));
     container.appendChild(elem);
-}
+};
 const getUser = async () => {
     const mgr = await getUserManager();
     return mgr.getUser();
-}
+};
 const buildMenu = async () => {
     // get user
     const user = await getUser();
-    
+
     // build menu
     const navigationContainer = document.getElementById("navigation");
     navigationContainer.innerText = "";
@@ -99,12 +95,13 @@ const buildMenu = async () => {
     } else {
         addMenuItem(navigationContainer, "Logout", "logout");
     }
-}
+};
 const navigationClickHandler = async (ev) => {
     const user = await getUser();
     const hash = document.location.hash;
+    console.log("Current hash", hash);
     buildMenu();
-    
+
     const mainContainer = document.querySelector("main[role='main']");
     mainContainer.innerText = "";
     if (["", "#"].includes(hash)) {
@@ -113,8 +110,8 @@ const navigationClickHandler = async (ev) => {
             const respData = await fetch("/api/userinfo", {
                 headers: {
                     "content-type": "application/json",
-                    authorization: `Bearer ${user.access_token}`
-                }
+                    authorization: `Bearer ${user.access_token}`,
+                },
             });
             if (respData.status === 401) {
                 // see if we have a refresh token
@@ -138,10 +135,10 @@ const navigationClickHandler = async (ev) => {
                 } else {
                     document.location.hash = "#error";
                 }
-                return;
+            } else {
+                const data = await respData.json();
+                addTagParagraph(mainContainer, `UUID: ${data.uuid}`);
             }
-            const data = await respData.json();
-            addTagParagraph(mainContainer, `UUID: ${data.uuid}`)
         } else {
             addTagHeadline(mainContainer, `Welcome - please authenticate`);
         }
@@ -160,20 +157,17 @@ const navigationClickHandler = async (ev) => {
     } else if (["#logout"].includes(hash)) {
         navigationHandler_Logout();
     }
-
-}
-const initNavigation = () => {
-    const navigationContainer = document.getElementById("navigation");
-    navigationContainer.addEventListener("click", navigationClickHandler);
-}
+};
 
 window.addEventListener("DOMContentLoaded", async () => {
     // init app
-    initNavigation();
     navigationClickHandler();
 
     // look for logindetails info in local storage and handle callback if applicable
-    if (location.search.includes("state=") && (location.search.includes("code=") || location.search.includes("error="))) {
+    if (
+        location.search.includes("state=") &&
+        (location.search.includes("code=") || location.search.includes("error="))
+    ) {
         const mgr = await getUserManager();
         const user = await mgr.signinCallback();
         window.history.replaceState({}, document.title, "/");
