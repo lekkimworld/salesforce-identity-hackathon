@@ -30,6 +30,13 @@ let usermgr = new Promise(async (resolve, reject) => {
         loadUserInfo: true,
         userStore: new oidc.WebStorageStateStore({ store: window.localStorage }),
     });
+    console.log("Adding event listeners on the UserManager");
+    mgr.events.addAccessTokenExpired(() => {
+        console.log("Received AccessTokenExpired event");
+    });
+    mgr.events.addAccessTokenExpiring(() => {
+        console.log("Received AccessTokenExpiring event");
+    })
     resolve(mgr);
 });
 
