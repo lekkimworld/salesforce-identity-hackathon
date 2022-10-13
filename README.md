@@ -20,3 +20,7 @@ npm run start
 ```
 docker run --rm -it -p 8080:8080 --env-file ./.env lekkim/salesforce-identity-hackathon:oidc-pkce-library
 ```
+
+## Acknowledgement ##
+Using OIDC library from https://github.com/authts/oidc-client-ts for client side auth.
+
