@@ -26,7 +26,7 @@ let usermgr = new Promise(async (resolve, reject) => {
         authority: `https://${logindetails.mydomain}`,
         client_id: logindetails.client_id,
         redirect_uri: logindetails.redirect_uri,
-        scope: "openid api refresh_token",
+        scope: "openid refresh_token",
         loadUserInfo: true,
         userStore: new oidc.WebStorageStateStore({ store: window.localStorage }),
     });
