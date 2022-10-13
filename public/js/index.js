@@ -97,6 +97,7 @@ const buildMenu = async () => {
     }
 };
 const navigationClickHandler = async (ev) => {
+    const mgr = await getUserManager();
     const user = await getUser();
     const hash = document.location.hash;
     console.log("Current hash", hash);
@@ -113,32 +114,9 @@ const navigationClickHandler = async (ev) => {
                     authorization: `Bearer ${user.access_token}`,
                 },
             });
-            if (respData.status === 401) {
-                // see if we have a refresh token
-                const refresh_token = user.tokeninfo.refresh_token;
-                if (refresh_token) {
-                    // attempt to refresh access token
-                    const logindetails = JSON.parse(localStorage.getItem("logindetails"));
-                    const respRefresh = await fetch(`https://${logindetails.mydomain}/services/oauth2/token`, {
-                        method: "post",
-                        headers: {
-                            "content-type": "application/x-www-form-urlencoded",
-                            accept: "application/json",
-                        },
-                        body: `client_id=${logindetails.client_id}&grant_type=refresh_token&refresh_token=${refresh_token}`,
-                    });
-                    const dataRefresh = await respRefresh.json();
-                    user.tokeninfo = dataRefresh;
-                    user.tokeninfo.refresh_token = refresh_token;
-                    localStorage.setItem("user", JSON.stringify(user));
-                    document.location.reload();
-                } else {
-                    document.location.hash = "#error";
-                }
-            } else {
-                const data = await respData.json();
-                addTagParagraph(mainContainer, `UUID: ${data.uuid}`);
-            }
+            const data = await respData.json();
+            addTagParagraph(mainContainer, `UUID: ${data.uuid}`);
+            
         } else {
             addTagHeadline(mainContainer, `Welcome - please authenticate`);
         }

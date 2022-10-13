@@ -48,7 +48,7 @@ const main = async () => {
         });
         const introspectResult = await respIntrospection.json();
         const now = Date.now() / 1000;
-        if (introspectResult.error || introspectResult.nbf > now || introspectResult.exp < now) return res.status(401).end(); 
+        if (!introspectResult.active || introspectResult.nbf > now || introspectResult.exp < now) return res.status(401).end(); 
         console.log(`Introspected token for ${introspectResult.username} - token expires at ${new Date(introspectResult.exp * 1000).toISOString()}`);
         next();
     })
