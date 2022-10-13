@@ -55,6 +55,7 @@ const navigationHandler_Login = async () => {
 const navigationHandler_Logout = async () => {
     const mgr = await getUserManager();
     await mgr.removeUser();
+    await mgr.signoutRedirect();
     document.location.hash = "#";
 };
 
