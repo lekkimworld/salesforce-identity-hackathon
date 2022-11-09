@@ -158,8 +158,8 @@ window.addEventListener("DOMContentLoaded", async () => {
         const user = await mgr.signinCallback();
         window.history.replaceState({}, document.title, "/");
 
-        // save user
-        location.hash = "#";
+        // reload
+        location.reload();
     }
 });
 window.addEventListener("hashchange", navigationClickHandler);
