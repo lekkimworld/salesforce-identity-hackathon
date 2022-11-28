@@ -109,3 +109,14 @@ body {
 .mastfoot {
   color: rgba(255, 255, 255, .5);
 }
+
+.cover-heading {
+  size: 1rem;
+}
+.cover-heading-small {
+  size: 0.7rem;
+}
+
+pre {
+  text-align: left;
+}

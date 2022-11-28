@@ -1,4 +1,4 @@
-const navigationHandler_Login = async () => {
+    const navigationHandler_Login = async () => {
     // ask server for login details
     const resp = await fetch("/api/logindetails", {
         method: "get",
@@ -31,6 +31,13 @@ const addTagHeadline = (container, text) => {
     container.appendChild(elemHeadline);
     return elemHeadline;
 }
+const addTagSubheadline = (container, text) => {
+    const elemHeadline = document.createElement("h2");
+    elemHeadline.className = "cover-heading-small";
+    elemHeadline.appendChild(document.createTextNode(text));
+    container.appendChild(elemHeadline);
+    return elemHeadline;
+}
 const addTagParagraph = (container, text) => {
     const e = document.createElement("p");
     e.className = "lead";
@@ -40,6 +47,25 @@ const addTagParagraph = (container, text) => {
     container.appendChild(e);
     return e;
 }
+const addTagLink = (container, text, link) => {
+    const e = document.createElement("p");
+    e.className = "lead";
+    const e2 = document.createElement("a");
+    e2.href = link;
+    e2.target = "_new";
+    e2.appendChild(document.createTextNode(text));
+    e.appendChild(e2);
+    container.appendChild(e);
+    return e;
+};
+const addTagJson = (container, json) => {
+    const e = document.createElement("p");
+    const e2 = document.createElement("pre");
+    e.appendChild(e2);
+    e2.appendChild(document.createTextNode(JSON.stringify(json, undefined, 2)));
+    container.appendChild(e);
+    return e;
+};
 const addMenuItem = (container, title, hash) => {
         const currentHash = document.location.hash;
         const elem = document.createElement("a");
@@ -69,6 +95,7 @@ const buildMenu = () => {
     if (!user) {
         addMenuItem(navigationContainer, "Login", "login");
     } else {
+        addMenuItem(navigationContainer, "Token Info", "token");
         addMenuItem(navigationContainer, "Logout", "logout");
     }
 }
@@ -117,6 +144,40 @@ const navigationClickHandler = async (ev) => {
         } else {
             addTagHeadline(mainContainer, `Welcome - please authenticate`);
         }
+    } else if (["#token"].includes(hash)) {
+        const user = JSON.parse(localStorage.getItem("user"));
+        const logindetails = JSON.parse(localStorage.getItem("logindetails"));
+
+        // grab the id_token
+        const idtoken = user.tokeninfo.id_token;
+        const idtokenParts = idtoken.split(".");
+        const idtokenHeader = JSON.parse(atob(idtokenParts[0]));
+        const idtokenPayload = JSON.parse(atob(idtokenParts[1]));
+        
+        addTagHeadline(mainContainer, "Token Info");
+        addTagParagraph(
+            mainContainer,
+            `Below is the various pieces of token information obtained from the IdP. To get the OpenID Connect configuration and keys for signature info use the link below.`
+        );
+        addTagLink(
+            mainContainer,
+            `/.well-known/openid-configuration`,
+            `https://${logindetails.mydomain}/.well-known/openid-configuration`
+        );
+        addTagLink(
+            mainContainer,
+            `/id/keys`,
+            `https://${logindetails.mydomain}/id/keys`
+        );
+        addTagSubheadline(mainContainer, "ID Token, header");
+        addTagJson(mainContainer, idtokenHeader);
+        addTagSubheadline(mainContainer, "ID Token, payload")
+        addTagJson(
+            mainContainer,
+            idtokenPayload
+        );
+        addTagSubheadline(mainContainer, "Userinfo");
+        addTagJson(mainContainer, user.userinfo);
     } else if (["#about"].includes(hash)) {
         addTagHeadline(mainContainer, "About");
         addTagParagraph(
@@ -173,7 +234,7 @@ window.addEventListener("DOMContentLoaded", async () => {
             tokeninfo,
             userinfo
         }));
-        location.hash = "#";
+        location.reload();
     }
 });
 window.addEventListener("hashchange", navigationClickHandler);
