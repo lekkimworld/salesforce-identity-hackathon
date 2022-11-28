@@ -117,9 +117,11 @@ const navigationClickHandler = async (ev) => {
             });
             if (respData.status === 401) {
                 // see if we have a refresh token
+                console.log(`Recveived 401 back from server - looking for refresh_token`);
                 const refresh_token = user.tokeninfo.refresh_token;
                 if (refresh_token) {
                     // attempt to refresh access token
+                    console.log(`Found refresh_token - getting new access_token etc`);
                     const logindetails = JSON.parse(localStorage.getItem("logindetails"));
                     const respRefresh = await fetch(`https://${logindetails.mydomain}/services/oauth2/token`, {
                         method: "post",
@@ -130,6 +132,8 @@ const navigationClickHandler = async (ev) => {
                         body: `client_id=${logindetails.client_id}&grant_type=refresh_token&refresh_token=${refresh_token}`,
                     });
                     const dataRefresh = await respRefresh.json();
+                    console.log(`Received new access_token etc. back from Salesforce`);
+                    console.log(JSON.stringify(dataRefresh));
                     user.tokeninfo = dataRefresh;
                     user.tokeninfo.refresh_token = refresh_token;
                     localStorage.setItem("user", JSON.stringify(user));
