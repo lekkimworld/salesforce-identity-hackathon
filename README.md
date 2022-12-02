@@ -8,6 +8,7 @@ Create a `.env` file with the following keys:
 * MYDOMAIN
 * REDIRECT_URI (defaults to `http://localhost:8080`)
 * COUNTER_EXP (set to a number of requests to process before sending 401, defaults to Number.MAX_VALUE)
+* EXP_ID (optional, Salesforce Experience ID, should start with `expid_` i.e. `expid_foobar`)
 
 
 ## Running with node.js ##

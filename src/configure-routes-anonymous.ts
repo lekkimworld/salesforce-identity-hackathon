@@ -22,6 +22,7 @@ router.get("/logindetails", (_req, res) => {
         "client_id": constants.CLIENT_ID,
         "redirect_uri": constants.REDIRECT_URI,
         "mydomain": constants.MYDOMAIN,
+        "exp_id": constants.EXP_ID,
         code_challenge,
         code_verifier
     })

@@ -1,4 +1,8 @@
-    const navigationHandler_Login = async () => {
+const getMyDomainFromLoginDetails = (logindetails) => {
+    const myDomain = logindetails.mydomain.indexOf("https://") === 0 ? logindetails.mydomain : `https://${logindetails.mydomain}`;
+    return myDomain;
+}
+const navigationHandler_Login = async () => {
     // ask server for login details
     const resp = await fetch("/api/logindetails", {
         method: "get",
@@ -7,16 +11,18 @@
             accept: "application/json"
         }
     })
-    const obj = await resp.json();
+    const logindetails = await resp.json();
 
     // save in localStorage
-    localStorage.setItem("logindetails", JSON.stringify(obj));
+    localStorage.setItem("logindetails", JSON.stringify(logindetails));
 
     // create state
     const strstate = btoa(JSON.stringify({"foo": "bar"}));
     
     // initiate login
-    document.location.href = `https://${obj.mydomain}/services/oauth2/authorize?client_id=${obj.client_id}&redirect_uri=${obj.redirect_uri}&response_type=code&state=${strstate}&code_challenge=${obj.code_challenge}`;
+    const expId = logindetails.exp_id ? `/${logindetails.exp_id}` : "";
+    const myDomain = getMyDomainFromLoginDetails(logindetails);
+    document.location.href = `${myDomain}/services/oauth2/authorize${expId}?client_id=${logindetails.client_id}&redirect_uri=${logindetails.redirect_uri}&response_type=code&state=${strstate}&code_challenge=${logindetails.code_challenge}`;
     
 }
 const navigationHandler_Logout = () => {
@@ -123,14 +129,17 @@ const navigationClickHandler = async (ev) => {
                     // attempt to refresh access token
                     console.log(`Found refresh_token - getting new access_token etc`);
                     const logindetails = JSON.parse(localStorage.getItem("logindetails"));
-                    const respRefresh = await fetch(`https://${logindetails.mydomain}/services/oauth2/token`, {
-                        method: "post",
-                        headers: {
-                            "content-type": "application/x-www-form-urlencoded",
-                            accept: "application/json",
-                        },
-                        body: `client_id=${logindetails.client_id}&grant_type=refresh_token&refresh_token=${refresh_token}`,
-                    });
+                    const respRefresh = await fetch(
+                        `${getMyDomainFromLoginDetails(logindetails)}/services/oauth2/token`,
+                        {
+                            method: "post",
+                            headers: {
+                                "content-type": "application/x-www-form-urlencoded",
+                                accept: "application/json",
+                            },
+                            body: `client_id=${logindetails.client_id}&grant_type=refresh_token&refresh_token=${refresh_token}`,
+                        }
+                    );
                     const dataRefresh = await respRefresh.json();
                     console.log(`Received new access_token etc. back from Salesforce`);
                     console.log(JSON.stringify(dataRefresh));
@@ -152,13 +161,22 @@ const navigationClickHandler = async (ev) => {
         const user = JSON.parse(localStorage.getItem("user"));
         const logindetails = JSON.parse(localStorage.getItem("logindetails"));
 
+        // start page
+        addTagHeadline(mainContainer, "Token Info");
+
         // grab the id_token
         const idtoken = user.tokeninfo.id_token;
+        if (!idtoken) {
+            addTagParagraph(
+                mainContainer,
+                `No id_token attribute in the tokeninfo - probably not configured in Salesforce.`
+            );
+            return;
+        }
         const idtokenParts = idtoken.split(".");
         const idtokenHeader = JSON.parse(atob(idtokenParts[0]));
         const idtokenPayload = JSON.parse(atob(idtokenParts[1]));
         
-        addTagHeadline(mainContainer, "Token Info");
         addTagParagraph(
             mainContainer,
             `Below is the various pieces of token information obtained from the IdP. To get the OpenID Connect configuration and keys for signature info use the link below.`
@@ -166,13 +184,10 @@ const navigationClickHandler = async (ev) => {
         addTagLink(
             mainContainer,
             `/.well-known/openid-configuration`,
-            `https://${logindetails.mydomain}/.well-known/openid-configuration`
+            `${getMyDomainFromLoginDetails(logindetails)}/.well-known/openid-configuration`
         );
-        addTagLink(
-            mainContainer,
-            `/id/keys`,
-            `https://${logindetails.mydomain}/id/keys`
-        );
+        addTagLink(mainContainer, `/id/keys`, `${getMyDomainFromLoginDetails(logindetails)}/id/keys`);
+        
         addTagSubheadline(mainContainer, "ID Token, header");
         addTagJson(mainContainer, idtokenHeader);
         addTagSubheadline(mainContainer, "ID Token, payload")
@@ -217,19 +232,23 @@ window.addEventListener("DOMContentLoaded", async () => {
         const logindetails = JSON.parse(strlogindetails);
 
         // exchange authcode
-        const respToken = await fetch(`https://${logindetails.mydomain}/services/oauth2/token`, {
-            "method": "post",
-            "headers": {
+        const respToken = await fetch(`${getMyDomainFromLoginDetails(logindetails)}/services/oauth2/token`, {
+            method: "post",
+            headers: {
                 "content-type": "application/x-www-form-urlencoded",
-                "accept": "application/json"
+                accept: "application/json",
             },
-            body: `code=${auth_code}&code_verifier=${logindetails.code_verifier}&grant_type=authorization_code&redirect_uri=${logindetails.redirect_uri}&client_id=${logindetails.client_id}`
-        })
+            body: `code=${auth_code}&code_verifier=${logindetails.code_verifier}&grant_type=authorization_code&redirect_uri=${logindetails.redirect_uri}&client_id=${logindetails.client_id}`,
+        });
         const tokeninfo = await respToken.json();
         console.log(tokeninfo);
 
         // get userinfo
-        const respUserinfo = await fetch(`https://${logindetails.mydomain}/services/oauth2/userinfo?access_token=${tokeninfo.access_token}`);
+        const respUserinfo = await fetch(
+            `${getMyDomainFromLoginDetails(logindetails)}/services/oauth2/userinfo?access_token=${
+                tokeninfo.access_token
+            }`
+        );
         const userinfo = await respUserinfo.json();
         console.log(userinfo);
 

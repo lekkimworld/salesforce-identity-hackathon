@@ -15,6 +15,7 @@ console.log(`CLIENT_SECRET=${constants.CLIENT_SECRET?.substring(0, 10)}...`);
 console.log(`REDIRECT_URI=${constants.REDIRECT_URI}`);
 console.log(`MYDOMAIN=${constants.MYDOMAIN}`);
 console.log(`COUNTER_EXP=${constants.COUNTER_EXP}`);
+console.log(`EXP_ID=${constants.EXP_ID}`);
 
 const main = async () => {
     // create app and configure
@@ -38,7 +39,7 @@ const main = async () => {
         }
         // get and validate access token
         const access_token = authheader.substring(7);
-        const respIntrospection = await fetch(`https://${constants.MYDOMAIN}/services/oauth2/introspect`, {
+        const respIntrospection = await fetch(`${constants.MYDOMAIN}/services/oauth2/introspect`, {
             method: "post",
             headers: {
                 "content-type": "application/x-www-form-urlencoded",
