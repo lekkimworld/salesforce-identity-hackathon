@@ -1,3 +1,8 @@
+const getMyDomainFromLoginDetails = (logindetails) => {
+    const myDomain =
+        logindetails.mydomain.indexOf("https://") === 0 ? logindetails.mydomain : `https://${logindetails.mydomain}`;
+    return myDomain;
+};
 const getLoginDetails = async () => {
     // get logindetails
     const strlogindetails = localStorage.getItem("logindetails");
@@ -23,7 +28,7 @@ let usermgr = new Promise(async (resolve, reject) => {
 
     // get usermanager
     const mgr = new oidc.UserManager({
-        authority: `https://${logindetails.mydomain}`,
+        authority: logindetails.mydomain,
         client_id: logindetails.client_id,
         redirect_uri: logindetails.redirect_uri,
         scope: "openid refresh_token",
@@ -36,7 +41,7 @@ let usermgr = new Promise(async (resolve, reject) => {
     });
     mgr.events.addAccessTokenExpiring(() => {
         console.log("Received AccessTokenExpiring event");
-    })
+    });
     resolve(mgr);
 });
 
@@ -124,7 +129,6 @@ const navigationClickHandler = async (ev) => {
             });
             const data = await respData.json();
             addTagParagraph(mainContainer, `UUID: ${data.uuid}`);
-            
         } else {
             addTagHeadline(mainContainer, `Welcome - please authenticate`);
         }
