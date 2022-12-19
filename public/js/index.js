@@ -2,7 +2,7 @@ const getMyDomainFromLoginDetails = (logindetails) => {
     const myDomain = logindetails.mydomain.indexOf("https://") === 0 ? logindetails.mydomain : `https://${logindetails.mydomain}`;
     return myDomain;
 }
-const navigationHandler_Login = async () => {
+const navigationHandler_Login = async (lang) => {
     // ask server for login details
     const resp = await fetch("/api/logindetails", {
         method: "get",
@@ -18,16 +18,23 @@ const navigationHandler_Login = async () => {
 
     // create state
     const strstate = btoa(JSON.stringify({"foo": "bar"}));
+
+    // get nonce
+    const respNonce = await fetch(`${getMyDomainFromLoginDetails(logindetails)}/services/apexrest/nonce`);
+    const objNonce = await respNonce.json();
+    const nonce = objNonce.nonce;
     
     // initiate login
-    const expId = logindetails.exp_id ? `/${logindetails.exp_id}` : "";
+    const expId = `/expid_${lang}${nonce}`;
     const myDomain = getMyDomainFromLoginDetails(logindetails);
     document.location.href = `${myDomain}/services/oauth2/authorize${expId}?client_id=${logindetails.client_id}&redirect_uri=${logindetails.redirect_uri}&response_type=code&state=${strstate}&code_challenge=${logindetails.code_challenge}`;
     
 }
 const navigationHandler_Logout = () => {
     localStorage.removeItem("user");
-    document.location.hash = "#";
+    const logindetails = JSON.parse(localStorage.getItem("logindetails"));
+    const myDomain = getMyDomainFromLoginDetails(logindetails);
+    document.location.href = `${getMyDomainFromLoginDetails(logindetails)}/services/auth/idp/oidc/logout`;
 };
 
 const addTagHeadline = (container, text) => {
@@ -99,7 +106,9 @@ const buildMenu = () => {
     addMenuItem(navigationContainer, "Home", "");
     addMenuItem(navigationContainer, "About", "about");
     if (!user) {
-        addMenuItem(navigationContainer, "Login", "login");
+        addMenuItem(navigationContainer, "Login", "login-enUS");
+        addMenuItem(navigationContainer, "Login (da)", "login-daDK");
+        addMenuItem(navigationContainer, "Login (ua)", "login-ruUA");
     } else {
         addMenuItem(navigationContainer, "Token Info", "token");
         addMenuItem(navigationContainer, "Logout", "logout");
@@ -197,6 +206,8 @@ const navigationClickHandler = async (ev) => {
         );
         addTagSubheadline(mainContainer, "Userinfo");
         addTagJson(mainContainer, user.userinfo);
+        addTagSubheadline(mainContainer, "Tokeninfo Payload");
+        addTagJson(mainContainer, user.tokeninfo);
     } else if (["#about"].includes(hash)) {
         addTagHeadline(mainContainer, "About");
         addTagParagraph(
@@ -207,8 +218,9 @@ const navigationClickHandler = async (ev) => {
             mainContainer,
             "Cras vitae elit in urna efficitur vulputate sed in felis. Ut imperdiet nisi id quam efficitur, non ultrices ante mattis. Aenean aliquet a velit in efficitur. Nunc elementum sit amet elit in lobortis. Donec varius mauris gravida neque maximus, at elementum orci euismod. Aliquam vestibulum nunc lacus, eget ultrices augue vulputate non. Nunc tincidunt cursus posuere. Aenean elementum lorem magna, sit amet tempus felis porttitor id. Maecenas ligula odio, ullamcorper eu pretium non, vehicula at lorem. Etiam sem lectus, scelerisque et fermentum at, hendrerit in tortor. Etiam id sem quis ipsum interdum ultrices vel in ipsum. In facilisis venenatis feugiat. Duis tincidunt turpis eu massa rhoncus dictum."
         );
-    } else if (["#login"].includes(hash)) {
-        navigationHandler_Login();
+    } else if (hash.startsWith("#login")) {
+        const lang = hash.substring(7);
+        navigationHandler_Login(lang);
     } else if (["#logout"].includes(hash)) {
         navigationHandler_Logout();
     }
@@ -244,6 +256,7 @@ window.addEventListener("DOMContentLoaded", async () => {
         console.log(tokeninfo);
 
         // get userinfo
+        console.log(tokeninfo.access_token);
         const respUserinfo = await fetch(
             `${getMyDomainFromLoginDetails(logindetails)}/services/oauth2/userinfo?access_token=${
                 tokeninfo.access_token
