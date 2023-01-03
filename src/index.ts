@@ -38,7 +38,7 @@ const main = async () => {
         }
         // get and validate access token
         const access_token = authheader.substring(7);
-        const respIntrospection = await fetch(`https://${constants.MYDOMAIN}/services/oauth2/introspect`, {
+        const respIntrospection = await fetch(`${constants.MYDOMAIN}/services/oauth2/introspect`, {
             method: "post",
             headers: {
                 "content-type": "application/x-www-form-urlencoded",
