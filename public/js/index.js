@@ -1,40 +1,102 @@
-const getMyDomainFromLoginDetails = (logindetails) => {
-    const myDomain = logindetails.mydomain.indexOf("https://") === 0 ? logindetails.mydomain : `https://${logindetails.mydomain}`;
-    return myDomain;
-}
-const navigationHandler_Login = async (lang) => {
+const getLoginDetails = async () => {
+    const str_logindetails = localStorage.getItem("logindetails");
+    if (str_logindetails) return JSON.parse(str_logindetails);
+    
     // ask server for login details
-    const resp = await fetch("/api/logindetails", {
+    resp = await fetch("/api/logindetails", {
         method: "get",
         headers: {
             "content-type": "application/json",
-            accept: "application/json"
-        }
-    })
+            accept: "application/json",
+        },
+    });
     const logindetails = await resp.json();
 
     // save in localStorage
     localStorage.setItem("logindetails", JSON.stringify(logindetails));
 
-    // create state
-    const strstate = btoa(JSON.stringify({"foo": "bar"}));
-
-    // get nonce
-    const respNonce = await fetch(`${getMyDomainFromLoginDetails(logindetails)}/services/apexrest/nonce`);
-    const objNonce = await respNonce.json();
-    const nonce = objNonce.nonce;
-    
-    // initiate login
-    const expId = `/expid_${lang}${nonce}`;
-    const myDomain = getMyDomainFromLoginDetails(logindetails);
-    document.location.href = `${myDomain}/services/oauth2/authorize${expId}?client_id=${logindetails.client_id}&redirect_uri=${logindetails.redirect_uri}&response_type=code&state=${strstate}&code_challenge=${logindetails.code_challenge}`;
-    
+    // return
+    return logindetails;
 }
-const navigationHandler_Logout = () => {
+
+const getMyDomain = async () => {
+    const logindetails = await getLoginDetails();
+    const myDomain = logindetails.mydomain.indexOf("https://") === 0 ? logindetails.mydomain : `https://${logindetails.mydomain}`;
+    return myDomain;
+}
+
+const navigationHandler_LoginHeadlessInit = async () => {
+    // show login dialog
+    console.log("Showing login dialog");
+    document.querySelector("#login").classList.toggle("hidden");
+};
+
+const navigationHandler_LoginHeadlessPerform = async (username, password) => {
+    // get login details
+    const logindetails = await getLoginDetails();
+
+    // remove login dialog
+    console.log("Hiding login dialog");
+    document.querySelector("#login").classList.toggle("hidden");
+
+    // see if serverside or clientside
+    if (logindetails.headless_serverside) {
+        // log
+        console.log("Headless login is server side");
+
+        // call server
+        const resp = await fetch(`/api/login`, {
+            method: "post",
+            headers: {
+                "content-type": "application/json",
+                accept: "application/json"
+            },
+            body: JSON.stringify({
+                username, password
+            })
+        });
+        const tokeninfo = await resp.json();
+        console.log(tokeninfo);
+
+        // get userinfo
+        const respUserinfo = await fetch(
+            `${await getMyDomain()}/services/oauth2/userinfo?access_token=${tokeninfo.access_token}`
+        );
+        const userinfo = await respUserinfo.json();
+        console.log(userinfo);
+
+        // save user
+        localStorage.setItem(
+            "user",
+            JSON.stringify({
+                tokeninfo,
+                userinfo,
+            })
+        );
+        location.reload();
+
+    } else {
+        //log
+        console.log("Headless login is client side");
+
+        // get authcode
+        const authcode_payload = `response_type=code_credentials&redirect_uri=${logindetails.redirect_uri}&client_id=${logindetails.client_id}&code_challenge=${logindetails.code_challenge}&username=${username}&password=${password}&scope=openid%20forgot_password`;
+        resp = await fetch(`${logindetails.mydomain}/services/oauth2/authorize`, {
+            method: "post",
+            headers: {
+                "content-type": "application/x-www-form-urlencoded",
+                "Auth-Request-Type": "Named-User",
+            },
+            redirect: "manual",
+            body: authcode_payload,
+        });
+    }
+};
+
+const navigationHandler_Logout = async () => {
     localStorage.removeItem("user");
-    const logindetails = JSON.parse(localStorage.getItem("logindetails"));
-    const myDomain = getMyDomainFromLoginDetails(logindetails);
-    document.location.href = `${getMyDomainFromLoginDetails(logindetails)}/services/auth/idp/oidc/logout`;
+    const myDomain = await getMyDomain();
+    document.location.hash = "";
 };
 
 const addTagHeadline = (container, text) => {
@@ -79,11 +141,11 @@ const addTagJson = (container, json) => {
     container.appendChild(e);
     return e;
 };
-const addMenuItem = (container, title, hash) => {
+const addMenuItem = (container, title, hash, activateOnClick=true) => {
         const currentHash = document.location.hash;
         const elem = document.createElement("a");
         const classNames = ["nav-link"];
-        if ((!currentHash && !hash) || currentHash === `#${hash}`) {
+        if ((activateOnClick) && ((!currentHash && !hash) || currentHash === `#${hash}`)) {
             classNames.push("active");
         }
         elem.className = classNames.join(" ");
@@ -106,9 +168,7 @@ const buildMenu = () => {
     addMenuItem(navigationContainer, "Home", "");
     addMenuItem(navigationContainer, "About", "about");
     if (!user) {
-        addMenuItem(navigationContainer, "Login", "login-enUS");
-        addMenuItem(navigationContainer, "Login (da)", "login-daDK");
-        addMenuItem(navigationContainer, "Login (ua)", "login-ruUA");
+        addMenuItem(navigationContainer, "Login", "login", false);
     } else {
         addMenuItem(navigationContainer, "Token Info", "token");
         addMenuItem(navigationContainer, "Logout", "logout");
@@ -132,14 +192,14 @@ const navigationClickHandler = async (ev) => {
             });
             if (respData.status === 401) {
                 // see if we have a refresh token
-                console.log(`Recveived 401 back from server - looking for refresh_token`);
+                console.log(`Received 401 back from server - looking for refresh_token`);
                 const refresh_token = user.tokeninfo.refresh_token;
                 if (refresh_token) {
                     // attempt to refresh access token
                     console.log(`Found refresh_token - getting new access_token etc`);
-                    const logindetails = JSON.parse(localStorage.getItem("logindetails"));
+                    const logindetails = await getLoginDetails();
                     const respRefresh = await fetch(
-                        `${getMyDomainFromLoginDetails(logindetails)}/services/oauth2/token`,
+                        `${await getMyDomain()}/services/oauth2/token`,
                         {
                             method: "post",
                             headers: {
@@ -164,11 +224,11 @@ const navigationClickHandler = async (ev) => {
             const data = await respData.json();
             addTagParagraph(mainContainer, `UUID: ${data.uuid}`)
         } else {
-            addTagHeadline(mainContainer, `Welcome - please authenticate`);
+            addTagHeadline(mainContainer, `Welcome - please authenticate (headless, ${(await getLoginDetails()).headless_serverside ? "serverside" : "clientside"})`);
         }
     } else if (["#token"].includes(hash)) {
         const user = JSON.parse(localStorage.getItem("user"));
-        const logindetails = JSON.parse(localStorage.getItem("logindetails"));
+        const logindetails = await getLoginDetails();
 
         // start page
         addTagHeadline(mainContainer, "Token Info");
@@ -193,9 +253,9 @@ const navigationClickHandler = async (ev) => {
         addTagLink(
             mainContainer,
             `/.well-known/openid-configuration`,
-            `${getMyDomainFromLoginDetails(logindetails)}/.well-known/openid-configuration`
+            `${await getMyDomain()}/.well-known/openid-configuration`
         );
-        addTagLink(mainContainer, `/id/keys`, `${getMyDomainFromLoginDetails(logindetails)}/id/keys`);
+        addTagLink(mainContainer, `/id/keys`, `${await getMyDomain()}/id/keys`);
         
         addTagSubheadline(mainContainer, "ID Token, header");
         addTagJson(mainContainer, idtokenHeader);
@@ -218,9 +278,9 @@ const navigationClickHandler = async (ev) => {
             mainContainer,
             "Cras vitae elit in urna efficitur vulputate sed in felis. Ut imperdiet nisi id quam efficitur, non ultrices ante mattis. Aenean aliquet a velit in efficitur. Nunc elementum sit amet elit in lobortis. Donec varius mauris gravida neque maximus, at elementum orci euismod. Aliquam vestibulum nunc lacus, eget ultrices augue vulputate non. Nunc tincidunt cursus posuere. Aenean elementum lorem magna, sit amet tempus felis porttitor id. Maecenas ligula odio, ullamcorper eu pretium non, vehicula at lorem. Etiam sem lectus, scelerisque et fermentum at, hendrerit in tortor. Etiam id sem quis ipsum interdum ultrices vel in ipsum. In facilisis venenatis feugiat. Duis tincidunt turpis eu massa rhoncus dictum."
         );
-    } else if (hash.startsWith("#login")) {
-        const lang = hash.substring(7);
-        navigationHandler_Login(lang);
+    } else if ("#login" === hash) {
+        document.location.hash = "";
+        navigationHandler_LoginHeadlessInit();
     } else if (["#logout"].includes(hash)) {
         navigationHandler_Logout();
     }
@@ -231,46 +291,20 @@ window.addEventListener("DOMContentLoaded", async () => {
     // init app
     navigationClickHandler();
 
-    // look for logindetails info in local storage and handle callback if applicable
-    const strlogindetails = localStorage.getItem("logindetails")
-    if (strlogindetails && (location.search.includes("state=") && (location.search.includes("code=") || location.search.includes("error=")))) {
-        const params = new URLSearchParams(location.search);
-        window.history.replaceState({}, document.title, "/");
-        const auth_code = params.get("code");
-        const strstate = params.get("state");
-        console.log("State", JSON.parse(atob(strstate)));
-
-        // get logindetails
-        const logindetails = JSON.parse(strlogindetails);
-
-        // exchange authcode
-        const respToken = await fetch(`${getMyDomainFromLoginDetails(logindetails)}/services/oauth2/token`, {
-            method: "post",
-            headers: {
-                "content-type": "application/x-www-form-urlencoded",
-                accept: "application/json",
-            },
-            body: `code=${auth_code}&code_verifier=${logindetails.code_verifier}&grant_type=authorization_code&redirect_uri=${logindetails.redirect_uri}&client_id=${logindetails.client_id}`,
-        });
-        const tokeninfo = await respToken.json();
-        console.log(tokeninfo);
-
-        // get userinfo
-        console.log(tokeninfo.access_token);
-        const respUserinfo = await fetch(
-            `${getMyDomainFromLoginDetails(logindetails)}/services/oauth2/userinfo?access_token=${
-                tokeninfo.access_token
-            }`
-        );
-        const userinfo = await respUserinfo.json();
-        console.log(userinfo);
-
-        // save user
-        localStorage.setItem("user", JSON.stringify({
-            tokeninfo,
-            userinfo
-        }));
-        location.reload();
-    }
+    // add event listeners for headless login
+    document.querySelector("input[type='submit']").addEventListener("click", (ev) => {
+        ev.preventDefault();
+        const username = document.querySelector("input[id='login-username']").value;
+        const password = document.querySelector("input[id='login-password']").value;
+        if (!username || !password) {
+            return;
+        }
+        navigationHandler_LoginHeadlessPerform(username, password);
+    });
+    document.querySelector("#login").addEventListener("click", (ev) => {
+        if (ev.target.id !== "login") return;
+        ev.preventDefault();
+        ev.target.classList.toggle("hidden");
+    });
 });
 window.addEventListener("hashchange", navigationClickHandler);

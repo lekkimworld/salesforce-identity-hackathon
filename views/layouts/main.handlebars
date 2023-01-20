@@ -12,27 +12,50 @@
     </head>
     <body class="text-center">
         <div class="cover-container d-flex h-100 p-3 mx-auto flex-column">
-        <header class="masthead mb-auto">
-            <div class="inner">
-            <h3 class="masthead-brand">{{app.title}}</h3>
-            <nav id="navigation" class="nav nav-masthead justify-content-center">
-                
-            </nav>
-            </div>
-        </header>
+            <header class="masthead mb-auto">
+                <div class="inner">
+                <h3 class="masthead-brand">{{app.title}}</h3>
+                <nav id="navigation" class="nav nav-masthead justify-content-center">
+                    
+                </nav>
+                </div>
+            </header>
 
-        <main role="main" class="inner cover">
-            {{{body}}}
-        </main>
+            <main role="main" class="inner cover">
+                {{{body}}}
+            </main>
 
-        <footer class="mastfoot mt-auto">
-            <div class="inner">
-            <p>Built w/ Cover template, by <a href="https://twitter.com/mdo">@mdo</a>.</p>
-            </div>
-        </footer>
+            <footer class="mastfoot mt-auto">
+                <div class="inner">
+                <p>Built w/ Cover template, by <a href="https://twitter.com/mdo">@mdo</a>.</p>
+                </div>
+            </footer>
         </div>
 
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/js/bootstrap.min.js" integrity="sha384-IDwe1+LCz02ROU9k972gdyvl+AESN10+x7tBKgc9I5HFtuNz0wWnPclzo6p9vxnk" crossorigin="anonymous"></script>
         <script src="/js/index.js"></script>
+
+        <div class="blur hidden" id="login">
+            <div class="lightbox">
+                <div class="container">
+                    <div class="logo">Login</div>
+                    <div class="login-item">
+                        <form action="" method="post" class="form form-login">
+                            <div class="form-field">
+                                <label class="user" for="login-username"><span class="hidden">Username</span></label>
+                                <input id="login-username" type="text" class="form-input" placeholder="Username" required value="{{headless.username}}">
+                            </div>
+                            <div class="form-field">
+                                <label class="lock" for="login-password"><span class="hidden">Password</span></label>
+                                <input id="login-password" type="password" class="form-input" placeholder="Password" required value="{{headless.password}}">
+                            </div>
+                            <div class="form-field">
+                                <input type="submit" value="Log in">
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
     </body>
 </html>

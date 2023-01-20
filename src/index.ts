@@ -16,6 +16,9 @@ console.log(`REDIRECT_URI=${constants.REDIRECT_URI}`);
 console.log(`MYDOMAIN=${constants.MYDOMAIN}`);
 console.log(`COUNTER_EXP=${constants.COUNTER_EXP}`);
 console.log(`EXP_ID=${constants.EXP_ID}`);
+console.log(`HEADLESS_SERVERSIDE=${constants.HEADLESS.SERVERSIDE}`);
+console.log(`HEADLESS_USERNAME=${constants.HEADLESS.USERNAME}`);
+console.log(`HEADLESS_PASSWORD=${constants.HEADLESS.PASSWORD}`);
 
 const main = async () => {
     // create app and configure
@@ -26,8 +29,11 @@ const main = async () => {
 
     // ensure auth
     app.use(async (req, res, next) => {
-        // increment counter
-        counter++;
+        if (!["/favicon.ico"].includes(req.path)) {
+            // increment counter
+            counter++;
+            console.log(`Counter=${counter}`);
+        }
 
         // ensure bearer token
         const authheader = req.headers.authorization;
